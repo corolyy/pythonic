@@ -21,7 +21,7 @@ def is_in_range(minimum=None, maximum=None):
             raise ValueError("{} {} is too large")
     return is_in_range
 
-
+'''Decorator example'''
 # class Decorator
 def ensure(name, validate_func, doc=None):
     def decorator(Class):
@@ -52,4 +52,45 @@ class Book(object):
 
 print Book('old man and sea', 50, 10000) # --> 《old man and sea》. Price: 50. Quantity: 10000"
 
-print Book('lala land', "1", 100)  # --> raise
+# print Book('lala land', "1", 100)  # --> raise
+
+'''Class decorator to add property'''
+class Ensure(object):
+    def __init__(self, validate_func, doc=None):
+        self.validate_func = validate_func
+        self.doc = doc
+
+
+def do_ensure(Class):
+    def make_property(name, attribute):
+        private_name = "__" + name
+        def getter(self):
+            return getattr(self, private_name)
+        def setter(self, value):
+            attribute.validate_func(name, value)
+            setattr(self, private_name, value)
+        return property(getter, setter, doc=attribute.doc)
+
+    for name, attribute in Class.__dict__.items():
+        if isinstance(attribute, Ensure):
+            setattr(Class, name, make_property(name, attribute))
+    return Class
+
+
+@do_ensure
+class EnsureBook(object):
+    title = Ensure(is_non_empty_str)
+    price = Ensure(is_in_range(10, 100))
+    quantity = Ensure(is_in_range(1000, 10000))
+    def __init__(self, title, price, quantity):
+        self.title = title
+        self.price = price
+        self.quantity = quantity
+
+    @property
+    def value(self):
+        return self.price * self.quantity
+
+
+print EnsureBook('old man and sea', 10, 1000).value  # --> 10000
+print EnsureBook('old man and sea', 1, 100).value  # --> raise
